@@ -39,16 +39,22 @@
 
   /* shots */
   .shots {
-    display: flex; gap: 32px; justify-content: center;
-    padding: 32px 24px 8px; flex-wrap: wrap;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 32px;
+    max-width: 880px; margin: 0 auto;
+    padding: 32px 24px 8px; align-items: start;
   }
-  .shot { text-align: center; }
+  .shot { text-align: center; display: flex; flex-direction: column; }
+  .shot .frame {
+    height: 430px; display: flex; align-items: flex-start; justify-content: center;
+  }
   .shot img {
-    width: 260px; border-radius: 18px;
+    max-width: 260px; max-height: 430px; width: auto; height: auto;
+    border-radius: 18px;
     border: 1px solid var(--line);
     box-shadow: 0 12px 32px rgba(43,38,32,.12);
   }
-  .shot figcaption { margin-top: 10px; color: var(--muted); font-size: .9rem; }
+  .shot figcaption { margin-top: 12px; color: var(--muted); font-size: .9rem; }
+  .shot figcaption b { display: block; color: var(--ink); font-size: 1rem; margin-bottom: 2px; }
 
   /* sections */
   section.block { padding: 40px 0 8px; }
@@ -80,6 +86,7 @@
   footer a { color: var(--ink); }
 
   @media (max-width: 600px) {
+    .shots { grid-template-columns: 1fr; }
     .keys { grid-template-columns: 1fr; }
     .hero h1 { font-size: 1.5rem; }
   }
@@ -93,7 +100,7 @@
 <header class="hero">
   <img class="cat" src="assets/cat.png" alt="OpenCodeCat 像素小猫">
   <h1>OpenCodeCat</h1>
-  <p>桌面上的一只小猫，顺手看一眼用量。</p>
+  <p>桌面上的一只小猫，顺手看一眼用量。不绑定任何中转，任意渠道都能接。</p>
   <div class="dl">
     <a class="btn" href="https://github.com/scottchen123/OpenCodeCat/releases/latest">下载最新版 dmg</a>
     <p class="note">macOS 13 及以上 · Apple Silicon · 菜单栏和 Dock 都不占图标</p>
@@ -102,12 +109,12 @@
 
 <div class="shots">
   <figure class="shot">
-    <img src="assets/widget.png" alt="用量详情面板：5 小时、周、月三档进度">
-    <figcaption>详情面板：5 小时 / 周 / 月三档用量，月额度 90% 会提醒</figcaption>
+    <div class="frame"><img src="assets/widget.png" alt="用量详情面板：5 小时、周、月三档进度"></div>
+    <figcaption><b>详情面板</b>5 小时 / 周 / 月三档用量，月额度 90% 会提醒</figcaption>
   </figure>
   <figure class="shot">
-    <img src="assets/widget-error.png" alt="渠道设置面板：名称、Key、用量接口">
-    <figcaption>渠道设置：填名称和 Key，换中转只改用量接口</figcaption>
+    <div class="frame"><img src="assets/widget-error.png" alt="渠道设置面板：名称、Key、用量接口"></div>
+    <figcaption><b>渠道设置</b>填名称和 Key，换中转只改用量接口（图为示例渠道）</figcaption>
   </figure>
 </div>
 
@@ -124,7 +131,7 @@
 
   <section class="block">
     <h2>设置 Key</h2>
-    <p>第一次打开如果提示找不到 Key，点详情面板右上角的齿轮：名称随便填自己区分渠道用，Key 粘贴进去（默认脱敏，点眼睛看全文），用量接口默认已填好，换中转时改成对应地址就行。保存后自动刷新，Key 只存本机，不会上传到任何地方。</p>
+    <p>第一次打开如果提示找不到 Key，点详情面板右上角的齿轮：名称随便填自己区分渠道用，Key 粘贴进去（默认脱敏，点眼睛看全文），用量接口填你的中转地址就行。保存后自动刷新，Key 只存本机，不会上传到任何地方。</p>
     <p style="margin-top:12px">也可以提前写好文件，或者用环境变量：</p>
     <pre>echo -n "你的key" &gt; ~/.opencode-usage-key
 chmod 600 ~/.opencode-usage-key
@@ -151,7 +158,7 @@ chmod 600 ~/.opencode-usage-key
     <h2>其他</h2>
     <ul>
       <li>每 60 秒自动刷一次，详情里也能点立即刷新</li>
-      <li>换中转地址时，只要回包里有 rolling、weekly、monthly 各自的 percent 就能直接用，缺字段会自动容错</li>
+      <li>不绑定渠道：只要回包里有 rolling、weekly、monthly 各自的 percent 就能直接用，缺字段会自动容错</li>
       <li>齿轮里可以恢复默认设置</li>
     </ul>
   </section>
