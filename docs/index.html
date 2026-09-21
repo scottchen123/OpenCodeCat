@@ -24,17 +24,24 @@
   .wrap { max-width: 880px; margin: 0 auto; padding: 0 24px; }
 
   /* hero */
-  .hero { text-align: center; padding: 72px 24px 40px; }
+  .hero { text-align: center; padding: 64px 24px 32px; }
   .hero .cat { image-rendering: pixelated; width: 112px; }
   .hero h1 { font-size: 2rem; letter-spacing: .02em; margin: 18px 0 8px; }
   .hero p { color: var(--muted); font-size: 1.05rem; }
-  .hero .dl { margin-top: 28px; }
+  .badges {
+    display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;
+    margin-top: 18px;
+  }
+  .badges img { height: 20px; }
+  .hero .dl { margin-top: 24px; display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
   .btn {
     display: inline-block; background: var(--ink); color: #fff;
     padding: 12px 32px; border-radius: 999px; text-decoration: none;
     font-size: 1rem;
   }
   .btn:hover { background: #000; }
+  .btn.ghost { background: transparent; color: var(--ink); border: 1.5px solid var(--ink); }
+  .btn.ghost:hover { background: var(--ink); color: #fff; }
   .hero .note { margin-top: 12px; font-size: .85rem; color: var(--muted); }
 
   /* shots */
@@ -68,7 +75,34 @@
   pre {
     background: #2b2620; color: #f3ecdf; border-radius: 12px;
     padding: 16px 18px; overflow-x: auto; font-size: .88rem; line-height: 1.7;
+    margin-top: 12px;
   }
+
+  /* feature cards */
+  .features { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 4px; }
+  .features div { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; }
+  .features b { display: block; margin-bottom: 4px; }
+  .features p { color: var(--muted); font-size: .92rem; line-height: 1.7; }
+
+  /* quick start steps */
+  .steps { list-style: none; padding: 0; counter-reset: step; }
+  .steps > li {
+    counter-increment: step; display: flex; gap: 14px;
+    padding: 12px 0; border-bottom: 1px dashed var(--line);
+  }
+  .steps > li:last-child { border-bottom: none; }
+  .steps > li::before {
+    content: counter(step); flex: none;
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--amber); color: #fff;
+    font-size: .9rem; font-weight: 700; text-align: center; line-height: 28px;
+  }
+  .steps h3 { font-size: 1rem; margin-bottom: 4px; }
+  .steps p { color: var(--muted); font-size: .93rem; }
+  .keyways { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+  .keyways div { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+  .keyways b { color: var(--amber); }
+
   .keys { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
   .keys div { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
   .keys b { color: var(--amber); }
@@ -83,7 +117,7 @@
   footer a { color: var(--ink); }
 
   @media (max-width: 600px) {
-    .keys { grid-template-columns: 1fr; }
+    .features, .keyways, .keys { grid-template-columns: 1fr; }
     .hero h1 { font-size: 1.5rem; }
   }
   @media (prefers-reduced-motion: reduce) {
@@ -97,10 +131,16 @@
   <img class="cat" src="assets/cat.png" alt="OpenCodeCat 像素小猫">
   <h1>OpenCodeCat</h1>
   <p>桌面上的一只小猫，顺手看一眼用量。不绑定任何中转，任意渠道都能接。</p>
+  <div class="badges">
+    <img src="https://img.shields.io/badge/macOS-13%2B-black?logo=apple" alt="macOS 13+">
+    <img src="https://img.shields.io/badge/arch-Apple_Silicon-black" alt="Apple Silicon">
+    <img src="https://img.shields.io/github/v/release/scottchen123/OpenCodeCat" alt="最新版本">
+  </div>
   <div class="dl">
     <a class="btn" href="https://github.com/scottchen123/OpenCodeCat/releases/latest">下载最新版 dmg</a>
-    <p class="note">macOS 13 及以上 · Apple Silicon · 菜单栏和 Dock 都不占图标</p>
+    <a class="btn ghost" href="https://github.com/scottchen123/OpenCodeCat">GitHub 仓库</a>
   </div>
+  <p class="note">macOS 13 及以上 · Apple Silicon · 菜单栏和 Dock 都不占图标</p>
 </header>
 
 <div class="shots">
@@ -117,18 +157,41 @@
 <div class="wrap">
 
   <section class="block">
-    <h2>装上就能用</h2>
-    <ol>
-      <li>从 <a href="https://github.com/scottchen123/OpenCodeCat/releases/latest">Releases latest</a> 下载 <code>OpenCodeCat-macOS-arm64.dmg</code></li>
-      <li>双击打开，把 OpenCodeCat 拖进 Applications，再双击运行</li>
-      <li>桌面上多出一只猫，位置随便拖，关掉重开还在原地</li>
-    </ol>
+    <h2>特性</h2>
+    <div class="features">
+      <div><b>常驻桌面</b><p>一只像素小猫加一个月度百分比，不占地方，位置随便拖，记住后下次还在原地。</p></div>
+      <div><b>三档用量</b><p>悬停展开 5 小时 / 周 / 月三条进度，单击看完整额度与重置时间。</p></div>
+      <div><b>颜色预警</b><p>绿、黄、橙、红四段变色，月额度到 90% 出一条提醒。</p></div>
+      <div><b>Key 只存本机</b><p>渠道 Key 只保存在你的电脑上，不上传到任何地方。</p></div>
+    </div>
   </section>
 
   <section class="block">
-    <h2>设置 Key</h2>
-    <p>第一次打开如果提示找不到 Key，点详情面板右上角的齿轮：名称随便填自己区分渠道用，Key 粘贴进去（默认脱敏，点眼睛看全文），用量接口填你的中转地址就行。保存后自动刷新，Key 只存本机，不会上传到任何地方。</p>
-    <p style="margin-top:12px">也可以提前写好文件，或者用环境变量：</p>
+    <h2>快速开始</h2>
+    <ol class="steps">
+      <li>
+        <div>
+          <h3>下载安装</h3>
+          <p>从 <a href="https://github.com/scottchen123/OpenCodeCat/releases/latest">Releases latest</a> 下载 <code>OpenCodeCat-macOS-arm64.dmg</code>，双击打开后把 OpenCodeCat 拖进 Applications，再双击运行。</p>
+        </div>
+      </li>
+      <li>
+        <div>
+          <h3>填 Key</h3>
+          <p>第一次打开如果提示找不到 Key，用下面任意一种方式配置，保存后自动刷新：</p>
+          <div class="keyways">
+            <div><b>界面配置</b><br>点详情面板右上角齿轮，填名称和 Key，用量接口填你的中转地址。</div>
+            <div><b>文件 / 环境变量</b><br>写 <code>~/.opencode-usage-key</code> 或设 <code>OPENCODE_GO_API_KEY</code>。</div>
+          </div>
+        </div>
+      </li>
+      <li>
+        <div>
+          <h3>开始用</h3>
+          <p>桌面上多出一只猫：悬停看三档用量，单击开关详情，右键刷新或退出。每 60 秒自动刷一次。</p>
+        </div>
+      </li>
+    </ol>
     <pre>echo -n "你的key" &gt; ~/.opencode-usage-key
 chmod 600 ~/.opencode-usage-key
 # 或 export OPENCODE_GO_API_KEY=你的key</pre>
