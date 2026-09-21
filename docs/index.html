@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OpenCodeCat — 桌面上的一只小猫，顺手看一眼用量</title>
+<style>
+  :root {
+    --ink: #2b2620;
+    --paper: #faf7f1;
+    --amber: #e8842c;
+    --amber-soft: #fdf0dd;
+    --moss: #5f7a54;
+    --line: #e7dfd1;
+    --muted: #8a7f6e;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    line-height: 1.8;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 0 24px; }
+
+  /* hero */
+  .hero { text-align: center; padding: 72px 24px 40px; }
+  .hero .cat { image-rendering: pixelated; width: 112px; }
+  .hero h1 { font-size: 2rem; letter-spacing: .02em; margin: 18px 0 8px; }
+  .hero p { color: var(--muted); font-size: 1.05rem; }
+  .hero .dl { margin-top: 28px; }
+  .btn {
+    display: inline-block; background: var(--ink); color: #fff;
+    padding: 12px 32px; border-radius: 999px; text-decoration: none;
+    font-size: 1rem;
+  }
+  .btn:hover { background: #000; }
+  .hero .note { margin-top: 12px; font-size: .85rem; color: var(--muted); }
+
+  /* shots */
+  .shots {
+    display: flex; gap: 32px; justify-content: center;
+    padding: 32px 24px 8px; flex-wrap: wrap;
+  }
+  .shot { text-align: center; }
+  .shot img {
+    width: 260px; border-radius: 18px;
+    border: 1px solid var(--line);
+    box-shadow: 0 12px 32px rgba(43,38,32,.12);
+  }
+  .shot figcaption { margin-top: 10px; color: var(--muted); font-size: .9rem; }
+
+  /* sections */
+  section.block { padding: 40px 0 8px; }
+  section.block h2 {
+    font-size: 1.25rem; margin-bottom: 16px;
+    padding-left: 12px; border-left: 4px solid var(--amber);
+  }
+  section.block ol, section.block ul { padding-left: 1.4em; }
+  section.block li { margin: 6px 0; }
+  code {
+    background: #f0e9da; padding: 1px 7px; border-radius: 6px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .92em;
+  }
+  pre {
+    background: #2b2620; color: #f3ecdf; border-radius: 12px;
+    padding: 16px 18px; overflow-x: auto; font-size: .88rem; line-height: 1.7;
+  }
+  .keys { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+  .keys div { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+  .keys b { color: var(--amber); }
+  .swatches { display: flex; gap: 10px; align-items: center; margin-top: 12px; flex-wrap: wrap; }
+  .sw { display: inline-flex; align-items: center; gap: 6px; font-size: .9rem; color: var(--muted); }
+  .dot { width: 14px; height: 14px; border-radius: 50%; display: inline-block; }
+
+  footer {
+    margin-top: 56px; border-top: 1px solid var(--line);
+    padding: 24px; text-align: center; color: var(--muted); font-size: .9rem;
+  }
+  footer a { color: var(--ink); }
+
+  @media (max-width: 600px) {
+    .keys { grid-template-columns: 1fr; }
+    .hero h1 { font-size: 1.5rem; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <img class="cat" src="assets/cat.png" alt="OpenCodeCat 像素小猫">
+  <h1>OpenCodeCat</h1>
+  <p>桌面上的一只小猫，顺手看一眼用量。</p>
+  <div class="dl">
+    <a class="btn" href="https://github.com/scottchen123/OpenCodeCat/releases/latest">下载最新版 dmg</a>
+    <p class="note">macOS 13 及以上 · Apple Silicon · 菜单栏和 Dock 都不占图标</p>
+  </div>
+</header>
+
+<div class="shots">
+  <figure class="shot">
+    <img src="assets/widget.png" alt="用量详情面板：5 小时、周、月三档进度">
+    <figcaption>详情面板：5 小时 / 周 / 月三档用量，月额度 90% 会提醒</figcaption>
+  </figure>
+  <figure class="shot">
+    <img src="assets/widget-error.png" alt="渠道设置面板：名称、Key、用量接口">
+    <figcaption>渠道设置：填名称和 Key，换中转只改用量接口</figcaption>
+  </figure>
+</div>
+
+<div class="wrap">
+
+  <section class="block">
+    <h2>装上就能用</h2>
+    <ol>
+      <li>从 <a href="https://github.com/scottchen123/OpenCodeCat/releases/latest">Releases latest</a> 下载 <code>OpenCodeCat-macOS-arm64.dmg</code></li>
+      <li>双击打开，把 OpenCodeCat 拖进 Applications，再双击运行</li>
+      <li>桌面上多出一只猫，位置随便拖，关掉重开还在原地</li>
+    </ol>
+  </section>
+
+  <section class="block">
+    <h2>设置 Key</h2>
+    <p>第一次打开如果提示找不到 Key，点详情面板右上角的齿轮：名称随便填自己区分渠道用，Key 粘贴进去（默认脱敏，点眼睛看全文），用量接口默认已填好，换中转时改成对应地址就行。保存后自动刷新，Key 只存本机，不会上传到任何地方。</p>
+    <p style="margin-top:12px">也可以提前写好文件，或者用环境变量：</p>
+    <pre>echo -n "你的key" &gt; ~/.opencode-usage-key
+chmod 600 ~/.opencode-usage-key
+# 或 export OPENCODE_GO_API_KEY=你的key</pre>
+  </section>
+
+  <section class="block">
+    <h2>日常用法</h2>
+    <div class="keys">
+      <div><b>拖动</b><br>按住小猫拖，位置自动记住</div>
+      <div><b>悬停</b><br>展开 5 小时 / 周 / 月三条进度</div>
+      <div><b>单击</b><br>打开、关闭详情：完整额度与重置时间</div>
+      <div><b>右键</b><br>刷新、放回右上角、隐藏、退出</div>
+    </div>
+    <div class="swatches">
+      <span class="sw"><span class="dot" style="background:#3fa34d"></span>低于 40%</span>
+      <span class="sw"><span class="dot" style="background:#e3b505"></span>低于 70%</span>
+      <span class="sw"><span class="dot" style="background:#e8842c"></span>低于 90%</span>
+      <span class="sw"><span class="dot" style="background:#d62828"></span>90% 起</span>
+    </div>
+  </section>
+
+  <section class="block">
+    <h2>其他</h2>
+    <ul>
+      <li>每 60 秒自动刷一次，详情里也能点立即刷新</li>
+      <li>换中转地址时，只要回包里有 rolling、weekly、monthly 各自的 percent 就能直接用，缺字段会自动容错</li>
+      <li>齿轮里可以恢复默认设置</li>
+    </ul>
+  </section>
+
+</div>
+
+<footer>
+  个人手搓的小工具，有问题请到 <a href="https://github.com/scottchen123/OpenCodeCat/issues">GitHub 提 Issue</a>
+</footer>
+
+</body>
+</html>
