@@ -43,12 +43,9 @@
     max-width: 880px; margin: 0 auto;
     padding: 32px 24px 8px; align-items: start;
   }
-  .shot { text-align: center; display: flex; flex-direction: column; }
-  .shot .frame {
-    height: 430px; display: flex; align-items: flex-start; justify-content: center;
-  }
+  .shot { text-align: center; }
   .shot img {
-    max-width: 260px; max-height: 430px; width: auto; height: auto;
+    width: 260px; height: auto;
     border-radius: 18px;
     border: 1px solid var(--line);
     box-shadow: 0 12px 32px rgba(43,38,32,.12);
@@ -109,11 +106,11 @@
 
 <div class="shots">
   <figure class="shot">
-    <div class="frame"><img src="assets/widget.png" alt="用量详情面板：5 小时、周、月三档进度"></div>
+    <img src="assets/widget.png" alt="用量详情面板：5 小时、周、月三档进度">
     <figcaption><b>详情面板</b>5 小时 / 周 / 月三档用量，月额度 90% 会提醒</figcaption>
   </figure>
   <figure class="shot">
-    <div class="frame"><img src="assets/widget-error.png" alt="渠道设置面板：名称、Key、用量接口"></div>
+    <img src="assets/widget-error.png" alt="渠道设置面板：名称、Key、用量接口">
     <figcaption><b>渠道设置</b>填名称和 Key，换中转只改用量接口（图为示例渠道）</figcaption>
   </figure>
 </div>
