@@ -4,6 +4,8 @@
 
 平时就是一只像素小猫加一个月度百分比，不占地方，能拖到屏幕任意位置。鼠标放上去会展开，5 小时、周、月三档用量各一条进度。点一下弹出详情，能看到重置时间和完整额度。
 
+> 在线介绍页：https://scottchen123.github.io/OpenCodeCat/
+
 ## 下载
 
 macOS（Apple Silicon）：[点这里下载最新 dmg](https://github.com/scottchen123/OpenCodeCat/releases/latest)
