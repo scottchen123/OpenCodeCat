@@ -196,9 +196,10 @@ func resetsText(_ w: UsageWindow?) -> String {
     guard let w else { return "?" }
     guard let d = ResetsFormat.iso.date(from: w.resetsAt)
         ?? ResetsFormat.isoPlain.date(from: w.resetsAt) else { return "?" }
-    let s = ResetsFormat.rel.localizedString(for: d, relativeTo: Date())
-    if s.contains("天") { return ResetsFormat.day.string(from: d) }
-    return s
+    let abs = ResetsFormat.day.string(from: d)
+    let days = Int(d.timeIntervalSinceNow / 86400)
+    if days > 0 { return "\(abs) · 剩\(days)天" }
+    return abs
 }
 
 // MARK: - Cat frames
