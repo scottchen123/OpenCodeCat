@@ -202,6 +202,23 @@ func resetsText(_ w: UsageWindow?) -> String {
     return abs
 }
 
+/// 月度剩余整天数（外层浮标用）：无数据/解析失败返回 nil
+func resetsDays(_ w: UsageWindow?) -> Int? {
+    guard let w,
+          let d = ResetsFormat.iso.date(from: w.resetsAt)
+              ?? ResetsFormat.isoPlain.date(from: w.resetsAt) else { return nil }
+    let days = Int(d.timeIntervalSinceNow / 86400)
+    return days >= 0 ? days : nil
+}
+
+/// 剩余天数颜色：>10天绿 / 4–10天橙 / ≤3天红
+func resetsDaysColor(_ days: Int?) -> Color {
+    guard let days else { return .secondary }
+    if days <= 3 { return .red }
+    if days <= 10 { return .orange }
+    return .green
+}
+
 // MARK: - Cat frames
 
 func loadCatFrames() -> [NSImage] {
@@ -262,16 +279,28 @@ struct CatWidget: View {
                     }
                     .transition(.move(edge: .trailing).combined(with: .opacity))
                 } else {
-                    if let m = fetcher.monthly?.percent {
-                        Text((m >= 90 ? "⚠ " : "") + "\(Int(m))%")
-                            .font(.system(size: 13, weight: .bold, design: .monospaced))
-                            .foregroundColor(levelColor(m))
-                            .transition(.opacity)
-                    } else if fetcher.error != nil {
-                        Text("⚠").font(.system(size: 13, weight: .bold))
-                    } else {
-                        Text("…").font(.system(size: 13, weight: .bold))
-                            .foregroundStyle(.secondary)
+                    // 常态两行：上为剩余天数（区间色），下为月度百分比（用量色）
+                    VStack(alignment: .trailing, spacing: 1) {
+                        if let days = resetsDays(fetcher.monthly) {
+                            Text("剩\(days)天")
+                                .font(.system(size: 11, weight: .medium, design: .rounded))
+                                .foregroundColor(resetsDaysColor(days))
+                        } else if fetcher.error != nil || fetcher.monthly != nil {
+                            Text("?天")
+                                .font(.system(size: 11, weight: .medium, design: .rounded))
+                                .foregroundStyle(.secondary)
+                        }
+                        if let m = fetcher.monthly?.percent {
+                            Text((m >= 90 ? "⚠ " : "") + "\(Int(m))%")
+                                .font(.system(size: 13, weight: .bold, design: .rounded))
+                                .foregroundColor(levelColor(m))
+                                .transition(.opacity)
+                        } else if fetcher.error != nil {
+                            Text("⚠").font(.system(size: 13, weight: .bold))
+                        } else {
+                            Text("…").font(.system(size: 13, weight: .bold))
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
             }
@@ -579,7 +608,7 @@ final class FloatController: NSObject {
 
     private let posKey = "opencodecat.floatpos"
     /// 常态 / hover 展开两种窗口尺寸（hover 用真实窗口放大，保证指标不被裁掉）
-    private let normalSize = NSSize(width: 150, height: 54)
+    private let normalSize = NSSize(width: 150, height: 68)
     private let hoverSize = NSSize(width: 224, height: 84)
     /// 拖拽起始窗口原点 + 拖拽中标记（拖拽时锁 hover 缩放，避免窗口尺寸跳变吃掉位移）
     private var dragStartOrigin: NSPoint?
