@@ -647,19 +647,19 @@ final class FloatController: NSObject {
         win.hasShadow = false
         self.widgetWin = win
 
-        // 恢复上次位置，否则默认右上角
-        if let saved = UserDefaults.standard.string(forKey: posKey) {
-            let parts = saved.split(separator: ",").compactMap { Double($0) }
-            if parts.count == 2 {
-                win.setFrameOrigin(NSPoint(x: parts[0], y: parts[1]))
-            } else {
-                placeTopRight(win)
-            }
+        // 恢复上次位置，否则默认右上角（保存的坐标可能来自已拔掉的外接屏）
+        if let saved = UserDefaults.standard.string(forKey: posKey),
+           let origin = savedOrigin(saved, size: normalSize) {
+            win.setFrameOrigin(origin)
         } else {
             placeTopRight(win)
         }
         NotificationCenter.default.addObserver(
             self, selector: #selector(savePos), name: NSWindow.didMoveNotification, object: win)
+        // 运行中拔插外接屏 / 改分辨率，原坐标可能落到屏幕外，重新校验一次
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(screenParamsChanged),
+            name: NSApplication.didChangeScreenParametersNotification, object: nil)
 
         // SIGUSR1 翻转显示/隐藏（toggle-cat.sh 用，不杀进程）
         signal(SIGUSR1, SIG_IGN)
@@ -679,6 +679,28 @@ final class FloatController: NSObject {
             // 菜单栏下方一点
             win.setFrameTopLeftPoint(NSPoint(x: v.maxX - win.frame.width - 12, y: v.maxY - 8))
         }
+    }
+
+    /// 窗口是否还有大半落在某个屏幕的可见区内
+    private func isMostlyVisible(_ frame: NSRect) -> Bool {
+        NSScreen.screens.contains { screen in
+            let inter = screen.visibleFrame.intersection(frame)
+            return inter.width * inter.height >= frame.width * frame.height * 0.5
+        }
+    }
+
+    /// 解析保存的窗口原点；不在任何屏幕可见区内（例如外接屏已拔掉）返回 nil，调用方走默认位置
+    private func savedOrigin(_ saved: String, size: NSSize) -> NSPoint? {
+        let parts = saved.split(separator: ",").compactMap { Double($0) }
+        guard parts.count == 2 else { return nil }
+        let frame = NSRect(origin: NSPoint(x: parts[0], y: parts[1]), size: size)
+        return isMostlyVisible(frame) ? frame.origin : nil
+    }
+
+    /// 屏幕布局变化后，若窗口已经跑到屏幕外，拉回右上角
+    @objc private func screenParamsChanged() {
+        guard !dragging, widgetWin != nil, !isMostlyVisible(widgetWin.frame) else { return }
+        resetPosition()
     }
 
     @objc private func savePos(_ note: Notification) {
