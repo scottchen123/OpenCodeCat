@@ -21,7 +21,13 @@ struct UsageWindow: Codable, Equatable {
             percent = d
         } else if let i = try? c.decode(Int.self, forKey: .percent) {
             percent = Double(i)
+        } else if let s = try? c.decode(String.self, forKey: .percent) {
+            let cleaned = s.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "%", with: "")
+            if let d = Double(cleaned) { percent = d }
         }
+        // 有些中转返回 0-1 小数（如 0.96 表示 96%），统一归一到 0-100
+        // 注意：官方 /zen/go/v1/usage 返回的是 0-100 整数，1 表示 1%，必须保留
+        if percent > 0, percent < 1 { percent *= 100 }
         resetsAt = (try? c.decode(String.self, forKey: .resetsAt)) ?? ""
     }
 }
@@ -73,9 +79,11 @@ final class UsageFetcher: ObservableObject, @unchecked Sendable {
         if let n = UserDefaults.standard.string(forKey: nameKey), !n.isEmpty { providerName = n }
         if let e = UserDefaults.standard.string(forKey: endpointKey), !e.isEmpty { endpoint = e }
         fetch()
-        timer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
+        let t = Timer(timeInterval: 60, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.fetch() }
         }
+        RunLoop.main.add(t, forMode: .common)
+        timer = t
     }
 
     /// key 优先级：面板设置 > 环境变量 > 旧 UserDefaults > ~/.opencode-usage-key（600 权限）
@@ -91,8 +99,15 @@ final class UsageFetcher: ObservableObject, @unchecked Sendable {
     var endpointHost: String { URL(string: endpoint)?.host ?? "地址无效" }
 
     func fetch() {
-        guard let url = URL(string: endpoint),
-              ["http", "https"].contains(url.scheme?.lowercased()) else {
+        guard var comps = URLComponents(string: endpoint),
+              let scheme = comps.scheme?.lowercased(), ["http", "https"].contains(scheme),
+              let url = {
+                  // 用随机 query 击穿 URLCache / CDN 缓存，旧 96% 不更新多为命中缓存
+                  var q = comps.queryItems ?? []
+                  q.append(URLQueryItem(name: "_t", value: String(Int(Date().timeIntervalSince1970 * 1000))))
+                  comps.queryItems = q
+                  return comps.url
+              }() else {
             self.error = "接口地址无效：\(endpoint)"
             self.lastUpdated = Date()
             return
@@ -103,21 +118,40 @@ final class UsageFetcher: ObservableObject, @unchecked Sendable {
             self.lastUpdated = Date()
             return
         }
-        var req = URLRequest(url: url)
+        var req = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData, timeoutInterval: 15)
         req.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
-        req.timeoutInterval = 15
-        URLSession.shared.dataTask(with: req) { [weak self] data, resp, err in
+        req.setValue("no-cache", forHTTPHeaderField: "Cache-Control")
+        req.setValue("no-cache", forHTTPHeaderField: "Pragma")
+        req.setValue(UUID().uuidString, forHTTPHeaderField: "X-Request-Nonce")
+        let cfg = URLSessionConfiguration.ephemeral
+        cfg.requestCachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+        cfg.urlCache = nil
+        cfg.timeoutIntervalForRequest = 15
+        let session = URLSession(configuration: cfg)
+        session.dataTask(with: req) { [weak self] data, resp, err in
             Task { @MainActor in
                 guard let self else { return }
-                if let http = resp as? HTTPURLResponse, http.statusCode == 200, let data,
-                   let usage = parseUsage(data) {
-                    self.rolling = usage["rolling"]
-                    self.weekly = usage["weekly"]
-                    self.monthly = usage["monthly"]
-                    self.error = nil
+                if let http = resp as? HTTPURLResponse, http.statusCode == 200, let data {
+                    if let usage = parseUsage(data) {
+                        self.rolling = usage["rolling"]
+                        self.weekly = usage["weekly"]
+                        self.monthly = usage["monthly"]
+                        self.error = nil
+                    } else {
+                        // 200 但结构对不上，露出原始片段便于排查新回包形状
+                        let snippet = String(data: data.prefix(300), encoding: .utf8) ?? ""
+                        self.error = "用量解析失败（\(self.endpointHost)）：\(snippet)"
+                    }
                 } else {
                     let code = (resp as? HTTPURLResponse)?.statusCode ?? -1
-                    self.error = err?.localizedDescription ?? "HTTP \(code)（\(self.endpointHost)）"
+                    var detail: String? = nil
+                    if let data, let j = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                        if let e = j["error"] as? [String: Any], let m = e["message"] as? String { detail = m }
+                        else if let m = j["message"] as? String { detail = m }
+                        else if let e = j["error"] as? String { detail = e }
+                    }
+                    let base = err?.localizedDescription ?? "HTTP \(code)（\(self.endpointHost)）"
+                    self.error = detail != nil ? "\(base): \(detail!)" : base
                 }
                 self.lastUpdated = Date()
             }
@@ -427,14 +461,16 @@ struct UsageDetailPanel: View {
                 .buttonStyle(.plain)
                 .help("设置：名称 / key / 接口地址")
                 Circle()
-                    .fill(fetcher.error != nil && fetcher.monthly == nil ? .red : .green)
+                    .fill(fetcher.error != nil ? .red : .green)
                     .frame(width: 8, height: 8)
             }
             if editing {
                 settingsCard
-            } else if let e = fetcher.error, fetcher.monthly == nil {
-                banner(icon: "wifi.exclamationmark", text: e, tint: .red)
             } else {
+                // 有错误时先露出横幅（有旧数据时也展示，避免“卡 96%”无提示）
+                if let e = fetcher.error {
+                    banner(icon: "wifi.exclamationmark", text: e, tint: .red)
+                }
                 card(icon: "timer", label: "5 小时窗口", w: fetcher.rolling)
                 card(icon: "calendar", label: "本周", w: fetcher.weekly)
                 card(icon: "chart.bar.fill", label: "本月", w: fetcher.monthly, highlight: true)
@@ -590,10 +626,19 @@ struct UsageDetailPanel: View {
     }
 }
 
-// 可获焦的浮窗子类，让详情面板可输入
-final class KeyableFloatWindow: NSWindow {
+// 可获焦且可拖的详情面板：LSUIElement + borderless 的 NSWindow 既抢不到 key 也默认不可拖
+final class KeyableFloatWindow: NSPanel {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { true }
+    override func mouseDown(with event: NSEvent) {
+        // 点在输入框/按钮上时让子视图先处理，避免点一下输入框就开始拖窗
+        let loc = contentView?.convert(event.locationInWindow, from: nil) ?? .zero
+        if let hit = contentView?.hitTest(loc), hit is NSTextView || hit is NSTextField || hit is NSButton {
+            super.mouseDown(with: event)
+            return
+        }
+        performDrag(with: event)
+    }
 }
 
 // MARK: - Floating window controller
@@ -647,19 +692,19 @@ final class FloatController: NSObject {
         win.hasShadow = false
         self.widgetWin = win
 
-        // 恢复上次位置，否则默认右上角
-        if let saved = UserDefaults.standard.string(forKey: posKey) {
-            let parts = saved.split(separator: ",").compactMap { Double($0) }
-            if parts.count == 2 {
-                win.setFrameOrigin(NSPoint(x: parts[0], y: parts[1]))
-            } else {
-                placeTopRight(win)
-            }
+        // 恢复上次位置，否则默认右上角（保存的坐标可能来自已拔掉的外接屏）
+        if let saved = UserDefaults.standard.string(forKey: posKey),
+           let origin = savedOrigin(saved, size: normalSize) {
+            win.setFrameOrigin(origin)
         } else {
             placeTopRight(win)
         }
         NotificationCenter.default.addObserver(
             self, selector: #selector(savePos), name: NSWindow.didMoveNotification, object: win)
+        // 运行中拔插外接屏 / 改分辨率，原坐标可能落到屏幕外，重新校验一次
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(screenParamsChanged),
+            name: NSApplication.didChangeScreenParametersNotification, object: nil)
 
         // SIGUSR1 翻转显示/隐藏（toggle-cat.sh 用，不杀进程）
         signal(SIGUSR1, SIG_IGN)
@@ -679,6 +724,28 @@ final class FloatController: NSObject {
             // 菜单栏下方一点
             win.setFrameTopLeftPoint(NSPoint(x: v.maxX - win.frame.width - 12, y: v.maxY - 8))
         }
+    }
+
+    /// 窗口是否还有大半落在某个屏幕的可见区内
+    private func isMostlyVisible(_ frame: NSRect) -> Bool {
+        NSScreen.screens.contains { screen in
+            let inter = screen.visibleFrame.intersection(frame)
+            return inter.width * inter.height >= frame.width * frame.height * 0.5
+        }
+    }
+
+    /// 解析保存的窗口原点；不在任何屏幕可见区内（例如外接屏已拔掉）返回 nil，调用方走默认位置
+    private func savedOrigin(_ saved: String, size: NSSize) -> NSPoint? {
+        let parts = saved.split(separator: ",").compactMap { Double($0) }
+        guard parts.count == 2 else { return nil }
+        let frame = NSRect(origin: NSPoint(x: parts[0], y: parts[1]), size: size)
+        return isMostlyVisible(frame) ? frame.origin : nil
+    }
+
+    /// 屏幕布局变化后，若窗口已经跑到屏幕外，拉回右上角
+    @objc private func screenParamsChanged() {
+        guard !dragging, widgetWin != nil, !isMostlyVisible(widgetWin.frame) else { return }
+        resetPosition()
     }
 
     @objc private func savePos(_ note: Notification) {
@@ -787,13 +854,16 @@ final class FloatController: NSObject {
         ))
         panelHost.setFrameSize(NSSize(width: 278, height: 420))
         let panel = KeyableFloatWindow(contentRect: NSRect(origin: .zero, size: NSSize(width: 278, height: 420)),
-                                       styleMask: [.borderless], backing: .buffered, defer: false)
+                                       styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         panel.contentView = panelHost
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.level = .floating
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.hasShadow = false
+        panel.becomesKeyOnlyIfNeeded = false
+        panel.hidesOnDeactivate = false
+        panel.isMovableByWindowBackground = true
 
         // 贴在浮标下方，超出屏幕则翻到上方
         var origin = widgetWin.frame.origin
@@ -807,9 +877,11 @@ final class FloatController: NSObject {
             origin.x = min(max(origin.x, v.minX + 8), v.maxX - 286)
         }
         panel.setFrameOrigin(origin)
-        // 获焦并置前，保证可输入
+        // 获焦并置前，保证可输入（accessory + NSPanel 需显式 orderFront + makeKey）
         NSApp.activate(ignoringOtherApps: true)
-        panel.makeKeyAndOrderFront(nil)
+        panel.orderFront(nil)
+        panel.makeKey()
+        panel.makeFirstResponder(panel.contentView)
         panelWin = panel
         panelShown = true
     }
@@ -829,6 +901,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
+        installMainMenu()
         let f = UsageFetcher()
         let c = FloatController()
         MainActor.assumeIsolated {
@@ -836,6 +909,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self.controller = c
             c.setup(fetcher: f)
         }
+    }
+
+    /// LSUIElement 的 App 默认没有主菜单，⌘C/⌘V 等快捷键无响应；补一个最小 Edit 菜单
+    private func installMainMenu() {
+        if NSApp.mainMenu != nil { return }
+        let main = NSMenu()
+        let appItem = NSMenuItem()
+        main.addItem(appItem)
+        let appMenu = NSMenu()
+        appMenu.addItem(NSMenuItem(title: "About OpenCodeCat", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: ""))
+        appMenu.addItem(.separator())
+        let services = NSMenu()
+        NSApp.servicesMenu = services
+        appMenu.addItem(NSMenuItem(title: "Services", action: nil, keyEquivalent: ""))
+        appMenu.items.last?.submenu = services
+        appMenu.addItem(.separator())
+        appMenu.addItem(NSMenuItem(title: "Hide OpenCodeCat", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h"))
+        appMenu.addItem(NSMenuItem(title: "Quit OpenCodeCat", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+        appItem.submenu = appMenu
+
+        let editItem = NSMenuItem()
+        main.addItem(editItem)
+        let edit = NSMenu(title: "Edit")
+        edit.addItem(NSMenuItem(title: "Undo", action: Selector(("undo:")), keyEquivalent: "z"))
+        edit.addItem(NSMenuItem(title: "Redo", action: Selector(("redo:")), keyEquivalent: "Z"))
+        edit.addItem(.separator())
+        edit.addItem(NSMenuItem(title: "Cut", action: #selector(NSText.cut(_:)), keyEquivalent: "x"))
+        edit.addItem(NSMenuItem(title: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "c"))
+        edit.addItem(NSMenuItem(title: "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: "v"))
+        edit.addItem(NSMenuItem(title: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a"))
+        editItem.submenu = edit
+
+        NSApp.mainMenu = main
     }
 }
 
